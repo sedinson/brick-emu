@@ -1,0 +1,1 @@
+uglifyjs --compress --mangle -- snaker.js > snaker.min.js

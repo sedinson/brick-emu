@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brick Emulator</title>
+    <style>
+        * {
+            outline: none;
+        }
+
+        body {
+            background-color: #1E1E1E;
+        }
+
+        #body {
+            position: relative;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 250px;
+            padding: 20px;
+            border-radius: 5px;
+            border-bottom-right-radius: 20px;
+            box-shadow: #000 0 5px 10px;
+            background-color: #fff;
+        }
+
+        #display {
+            position: relative;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            background-color: #eee;
+            border: #1e1e1e 1px solid;
+            border-radius: 4px;
+        }
+
+        #frame {
+            position: relative;
+            padding: 3px;
+            border-right: #1E1E1E 1px solid;
+        }
+
+        #score {
+            position: relative;
+            width: 100px;
+            padding: 5px;
+            background-color: #eee;
+        }
+
+        #control {
+            position: relative;
+            margin-top: 20px;
+            width: 250px;
+            height: 150px;
+        }
+
+        .arrow-button {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: yellow;
+        }
+
+        .select-button {
+            position: absolute;
+            width: 30px;
+            height: 15px;
+            border-radius: 15px;
+            border: none;
+            background: yellow;
+        }
+
+        #resetBtn {
+            right: 50px;
+        }
+
+        #playBtn {
+            right: 0;
+        }
+
+        #upBtn {
+            left: 50px;
+        }
+
+        #leftBtn {
+            top: 50px;
+        }
+
+        #rightBtn {
+            left: 100px;
+            top: 50px;
+        }
+
+        #downBtn {
+            left: 50px;
+            top: 100px;
+        }
+
+        #actionBtn {
+            left: 200px;
+            top: 50px;
+        }
+
+        #help {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            color: #fff;
+            text-align: center;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body onload="start()">
+    <div id="body" tabindex="0">
+        <div id="display">
+            <div id="frame">
+                <div id="screen"></div>
+            </div>
+            <div id="score"></div>
+        </div>
+        <div id="control">
+            <button class="select-button" id="resetBtn"></button>
+            <button class="select-button" id="playBtn"></button>
+
+            <button class="arrow-button" id="upBtn"></button>
+            <button class="arrow-button" id="downBtn"></button>
+            <button class="arrow-button" id="leftBtn"></button>
+            <button class="arrow-button" id="rightBtn"></button>
+            <button class="arrow-button" id="actionBtn"></button>
+        </div>
+    </div>
+
+    <p id="help">
+        <b>move:</b> <code>Arrow</code> | <b>pause:</b> <code>Enter</code> | <b>reset:</b> <code>Escape</code>
+    </p>
+
+    <script src="libs/brick.js"></script>
+
+    <script src="games/snake.js"></script>
+    <script src="games/tetris.js"></script>
+    <script src="games/formula1.js"></script>
+    <script src="games/invader.js"></script>
+    <script src="games/ping_pong.js"></script>
+    <script src="games/tank.js"></script>
+    <script>
+        function start() {
+            const element = document.getElementById('screen');
+            const score = document.getElementById('score');
+            const brickEmu = new Brick({
+                element, score
+            });
+
+            brickEmu.registerGame('snake', Snake);
+            brickEmu.registerGame('tetris', Tetris);
+            brickEmu.registerGame('formula1', Formula1);
+            brickEmu.registerGame('invader', Invader);
+            brickEmu.registerGame('ping_pong', PingPong);
+            brickEmu.registerGame('tank', Tank);
+
+            const PUSH = {
+                27: () => brickEmu.reset(), //ESC
+                13: () => brickEmu.togglePlay(), //Enter
+
+                65: () => brickEmu.events.push(BrickEvent.EVENTS.ACTION),
+                37: () => brickEmu.events.push(BrickEvent.EVENTS.LEFT),
+                38: () => brickEmu.events.push(BrickEvent.EVENTS.UP),
+                39: () => brickEmu.events.push(BrickEvent.EVENTS.RIGHT),
+                40: () => brickEmu.events.push(BrickEvent.EVENTS.DOWN)
+            };
+            const RELEASE = {
+                65: () => brickEmu.events.release(BrickEvent.EVENTS.ACTION),
+                37: () => brickEmu.events.release(BrickEvent.EVENTS.LEFT),
+                38: () => brickEmu.events.release(BrickEvent.EVENTS.UP),
+                39: () => brickEmu.events.release(BrickEvent.EVENTS.RIGHT),
+                40: () => brickEmu.events.release(BrickEvent.EVENTS.DOWN)
+            };
+
+            const body = document.getElementById('body');
+            body.addEventListener('keydown', (event) => {
+                const code = event.keyCode || event.which;
+                (PUSH[code] || (() => console.log("code", code)))();
+            })
+            body.addEventListener('keyup', (event) => {
+                const code = event.keyCode || event.which;
+                (RELEASE[code] || (() => null))();
+            });
+            body.focus();
+
+            const upBtn = document.getElementById('upBtn');
+            upBtn.addEventListener('mousedown', () => brickEmu.events.push(BrickEvent.EVENTS.UP));
+            upBtn.addEventListener('mouseup', () => brickEmu.events.release(BrickEvent.EVENTS.UP));
+            upBtn.addEventListener('touchstart', () => brickEmu.events.push(BrickEvent.EVENTS.UP));
+            upBtn.addEventListener('touchend', () => brickEmu.events.release(BrickEvent.EVENTS.UP));
+
+            const downBtn = document.getElementById('downBtn');
+            downBtn.addEventListener('mousedown', () => brickEmu.events.push(BrickEvent.EVENTS.DOWN));
+            downBtn.addEventListener('mouseup', () => brickEmu.events.release(BrickEvent.EVENTS.DOWN));
+            downBtn.addEventListener('touchstart', () => brickEmu.events.push(BrickEvent.EVENTS.DOWN));
+            downBtn.addEventListener('touchend', () => brickEmu.events.release(BrickEvent.EVENTS.DOWN));
+
+            const leftBtn = document.getElementById('leftBtn');
+            leftBtn.addEventListener('mousedown', () => brickEmu.events.push(BrickEvent.EVENTS.LEFT));
+            leftBtn.addEventListener('mouseup', () => brickEmu.events.release(BrickEvent.EVENTS.LEFT));
+            leftBtn.addEventListener('touchstart', () => brickEmu.events.push(BrickEvent.EVENTS.LEFT));
+            leftBtn.addEventListener('touchend', () => brickEmu.events.release(BrickEvent.EVENTS.LEFT));
+
+            const rightBtn = document.getElementById('rightBtn');
+            rightBtn.addEventListener('mousedown', () => brickEmu.events.push(BrickEvent.EVENTS.RIGHT));
+            rightBtn.addEventListener('mouseup', () => brickEmu.events.release(BrickEvent.EVENTS.RIGHT));
+            rightBtn.addEventListener('touchstart', () => brickEmu.events.push(BrickEvent.EVENTS.RIGHT));
+            rightBtn.addEventListener('touchend', () => brickEmu.events.release(BrickEvent.EVENTS.RIGHT));
+
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.addEventListener('mousedown', () => brickEmu.events.push(BrickEvent.EVENTS.ACTION));
+            actionBtn.addEventListener('mouseup', () => brickEmu.events.release(BrickEvent.EVENTS.ACTION));
+            actionBtn.addEventListener('touchstart', () => brickEmu.events.push(BrickEvent.EVENTS.ACTION));
+            actionBtn.addEventListener('touchend', () => brickEmu.events.release(BrickEvent.EVENTS.ACTION));
+
+            const resetBtn = document.getElementById('resetBtn');
+            resetBtn.addEventListener('mousedown', () => brickEmu.reset());
+            resetBtn.addEventListener('touchstart', () => brickEmu.reset());
+
+            const playBtn = document.getElementById('playBtn');
+            playBtn.addEventListener('mousedown', () => brickEmu.togglePlay());
+            playBtn.addEventListener('touchstart', () => brickEmu.togglePlay());
+        };
+    </script>
+</body>
+</html>
