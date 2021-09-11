@@ -151,6 +151,7 @@
     <script src="games/invader.js"></script>
     <script src="games/ping_pong.js"></script>
     <script src="games/tank.js"></script>
+    <script src="games/tic_tac_toe.js"></script>
     <script>
         function start() {
             const element = document.getElementById('screen');
@@ -165,6 +166,9 @@
             brickEmu.registerGame('invader', Invader);
             brickEmu.registerGame('ping_pong', PingPong);
             brickEmu.registerGame('tank', Tank);
+            brickEmu.registerGame('tic_tac_toe', TicTacToe);
+
+            brickEmu.mount(brickEmu.games[1]);
 
             const PUSH = {
                 27: () => brickEmu.reset(), //ESC

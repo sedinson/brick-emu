@@ -53,6 +53,7 @@ const LCD_NUMBERS = [
     [1,1,1,1,0,1,1],
     [0,0,0,0,0,0,0]
 ];
+const INTENSITIES = { "#": 100, "*": 75, "+": 50, "%": 25, "x": 15 };
 
 const camelToDash = (str) => str.replace(/([A-Z])/g, (_, cap) => `-${cap.toLowerCase()}`);
 const padLeft = (str, len, char) => `${Array.apply(null, Array(Math.max(0, len - str.length))).map(() => char).join('')}${str}`;
@@ -88,8 +89,9 @@ const createElementNS = (namespace, component, { style = {}, attributes = {} }, 
     return element;
 };
 
-const createScreen = (canvas, {width, height, size}) => {
+const createScreen = (canvas, {width, height, size, style}) => {
     setStyle(canvas, {
+        ...style,
         position: 'relative',
         width: width * size,
         height: height * size
@@ -115,7 +117,7 @@ const createScreen = (canvas, {width, height, size}) => {
 };
 
 const createLCD = (canvas, { size, color = "#000", scale = 50 }) => {
-    canvas.style.cssText = `display:flex;justify-content:flex-start;transform: scale(${scale}%);`;
+    canvas.style.cssText = `display:flex;justify-content:center;transform: scale(${scale}%);`;
     return Array.apply(null, Array(size)).map(() => {
         const lcd = createElement('div', {
             style: {
@@ -144,15 +146,16 @@ const createLCD = (canvas, { size, color = "#000", scale = 50 }) => {
     })
 };
 
+/**
+ * Pantalla de Puntos
+ */
 class BrickScreen {
-    constructor({ element, width = 10, height = 20, size = 15, minRefresh = 250, maxRefresh = 50 }) {
+    constructor({ element, width = 10, height = 20, size = 15, style = {} }) {
         this.width = width;
         this.height = height;
         this.size = size;
-        this.minRefresh = minRefresh;
-        this.maxRefresh = maxRefresh;
         this.element = element;
-        this.display = createScreen(element, { width, height, size });
+        this.display = createScreen(element, { width, height, size, style });
     }
 
     draw([ i, j ], intensity) {
@@ -165,16 +168,23 @@ class BrickScreen {
         this.display.forEach((row, i) => row.forEach((cell, j) => this.draw([i, j], intensity)));
     }
 
-    matrix(str) {
-        const intensities = { "#": 100, "*": 75, "+": 50, "%": 25 };
+    fromString(str) {
         str.split('\n').forEach((row, i) =>
             row.replace(/\s+/g, '').split('').forEach((cell, j) =>
-                this.draw([ i, j ], intensities[cell] || 0)
+                this.draw([ i, j ], INTENSITIES[cell] || 0)
             )
-        )
+        );
+    }
+
+    fromMatrix(matrix, offset = [0, 0]) {
+        const [ _i, _j ] = offset;
+        matrix.forEach((row, i) => row.forEach((opacity, j) => this.draw([_i + i, _j + j], 100 * opacity)));
     }
 }
 
+/**
+ * Pantalla Numérica de LCD
+ */
 class BrickLCD {
     constructor({ element, size, color, scale }) {
         this.size = size;
@@ -196,6 +206,9 @@ class BrickLCD {
     }
 }
 
+/**
+ * Pantalla de Texto Simple en Negrita
+ */
 class BrickText {
     constructor({ element }) {
         this.element = createElement('span', {
@@ -203,7 +216,7 @@ class BrickText {
                 fontSize: 14,
                 fontWeight: 'bold',
                 fontFamily: 'sans-serif',
-                textAlign: 'right',
+                textAlign: 'center',
                 display: 'block',
                 width: '100%',
                 padding: '4px 0 12px'
@@ -217,6 +230,9 @@ class BrickText {
     }
 }
 
+/**
+ * Eventos de input
+ */
 class BrickEvent {
     keys = { direction: undefined, action: false };
 
@@ -284,6 +300,9 @@ class BrickEvent {
     }
 }
 
+/**
+ * Base de un Juego
+ */
 class BrickGame {
     constructor({ name }) {
         this.name = name;
@@ -296,6 +315,9 @@ class BrickGame {
     score({ type }) {}
 };
 
+/**
+ * Pantalla derecha
+ */
 class BrickScore {
     constructor({ element }) {
         this.element = element;
@@ -310,14 +332,14 @@ class BrickScore {
             style: {
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'inherit'
+                alignItems: 'center'
             }
         });
         content.appendChild(
             createElement('span', {
                 style: {
                     fontFamily: 'sans-serif',
-                    textAlign: 'right',
+                    textAlign: 'center',
                     display: 'block',
                     width: '100%',
                     fontSize: 12
@@ -330,7 +352,7 @@ class BrickScore {
 
         switch(type) {
             case 'screen':
-                return new BrickScreen({ ...options, element });
+                return new BrickScreen({ ...options, element, style: { margin: '8px 0 16px' } });
             case 'lcd':
                 return new BrickLCD({ ...options, element });
             case 'text':
@@ -339,6 +361,9 @@ class BrickScore {
     }
 }
 
+/**
+ * Clase principal de juego
+ */
 class Brick {
     static REFRESH = {
         MIN: 250,
@@ -396,11 +421,13 @@ class Brick {
             }
         }, true);
         this.score.clear();
-        this.score.register('Game', 'text', {}).draw(game.name);
-        this.game.reset({
+        this.score.register('Game', 'text', {}).draw(game.name.toUpperCase().replace(/_/gi, ' '));
+        const data = this.game.reset({
             screen: this.screen,
             score: this.score
         });
+
+        this.refresh = (data && data.refresh)? data.refresh : Brick.REFRESH.MIN;
     }
 
     render() {
