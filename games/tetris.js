@@ -1,3 +1,5 @@
+const MIN_REFRESH = 8;
+
 const PIECES = [
     [
         [1],
@@ -46,21 +48,23 @@ class Piece {
         this.direction[1] = direction;
     }
 
-    move({ width, refresh }) {
+    move({ width, height, refresh, scenario }) {
         const [y, x] = this.pos;
         const [i, j] = this.direction;
-        this.pos = [y + i, Math.max(Math.min(width - this.piece[0].length, x + j), 0)];
+        const collide = this.collide({ height, scenario, direction: j });
+
+        this.pos = [y + i, Math.max(Math.min(width - this.piece[0].length, x + (collide? 0 : j)), 0)];
         this.counter = (this.counter + 1) % refresh;
         this.direction = [this.counter === 0? 1 : 0, 0];
     }
 
-    collide({ height, scenario }) {
+    collide({ height, scenario, direction = 0 }) {
         const [i, j] = this.pos;
         if(i + this.piece.length >= height) {
             return true;
         }
 
-        return this.piece.some((row, y) => row.some((cell, x) => i+y+1 >= 0 && scenario[i+y+1][j+x] === 1 && cell === 1));
+        return this.piece.some((row, y) => row.some((cell, x) => i+y+1 >= 0 && scenario[i+y+1][j+x+direction] === 1 && cell === 1));
     }
 
     rotate() {
@@ -109,31 +113,54 @@ class Tetris extends BrickGame {
     render({ screen, events }) {
         screen.fill(0);
         screen.fromMatrix(this.scenario);
+        if(this.gameOver) {
+            return;
+        }
 
         this.current.draw(screen, this.scenario);
         this.current.move({
             width: screen.width,
+            height: screen.height,
+            scenario: this.scenario,
             refresh: this.refresh
         });
         
+        //-- Validar si la pieza toca el escenario o llega al final
         if(this.current.collide({ height: screen.height, scenario: this.scenario })) {
+            //-- Copiar la pieza al escenario
             const [i, j] = this.current.pos;
             this.current.piece.forEach((row, y) => {
                 row.forEach((cell, x) => {
                     if(i + y >= 0) {
                         this.scenario[i + y][j + x] = Math.max(cell, this.scenario[i + y][j + x] || 0);
                     }
-                })
+                });
             });
+
+            //-- Establecer la pieza anterior como la siguiente
             this.current = new Piece({
                 piece: this.next.index,
                 pos: [-3, 4]
             });
+
+            //-- Obtener una pieza siguiente (Aleatoria)
             this.next = Piece.random();
 
-            this.score++;
-            this.points.draw(this.score * 3);
-            this.level.draw(1 + parseInt(this.score / 10));
+            //-- Verificar el escenario si hay puntuacion
+            this.scenario.forEach((row, i) => {
+                if(!row.some(cell => (cell || 0) === 0)) {
+                    this.scenario.splice(i, 1);
+                    this.scenario.unshift(Array.apply(0, Array(screen.width)));
+
+                    //-- Agregar un punto por linea borrada
+                    this.score++;
+                    this.points.draw(this.score * 3);
+                    this.level.draw(1 + parseInt(this.score / 10));
+                }
+            });
+
+            //-- Validar si es el fin del juego
+            this.gameOver = this.scenario[0].some(cell => cell === 1);
         }
 
         //-- Next piece
@@ -145,12 +172,17 @@ class Tetris extends BrickGame {
     }
 
     listen({ direction, action }) {
+        this.refresh = Math.max(MIN_REFRESH - parseInt(this.score / 10), 1);
+
         switch(direction) {
             case BrickEvent.EVENTS.LEFT:
                 this.current.displace(-1);
                 break;
             case BrickEvent.EVENTS.RIGHT:
                 this.current.displace(1);
+                break;
+            case BrickEvent.EVENTS.DOWN:
+                this.refresh = 1;
                 break;
         }
 
@@ -168,7 +200,8 @@ class Tetris extends BrickGame {
 
         this.scenario = Array.apply(0, Array(screen.height)).map(() => Array.apply(0, Array(screen.width)));
         this.score = 0;
-        this.refresh = 8;
+        this.refresh = MIN_REFRESH;
+        this.gameOver = false;
 
         this.current = Piece.random();
         this.next = Piece.random();

@@ -96,6 +96,7 @@ class Pong {
 
 class PingPong extends BrickGame {
     set = false;
+    direction = 0;
     turn = 1;
 
     preview({ screen }) {
@@ -166,18 +167,11 @@ class PingPong extends BrickGame {
         this.pong.draw(screen);
 
         //-- Player
-        let direction;
-        switch(events.read('direction')) {
-            case BrickEvent.EVENTS.LEFT:
-                direction = -1;
-                break;
-            case BrickEvent.EVENTS.RIGHT:
-                direction = 1;
-                break;
-            default:
-                direction = 0;
-        }
-        this.player.move({ direction, width: screen.width });
+        this.player.move({
+            direction: this.direction,
+            width: screen.width
+        });
+        this.direction = 0;
 
         //-- Pong
         const lost = this.pong.move({
@@ -225,6 +219,14 @@ class PingPong extends BrickGame {
          */
         if([BrickEvent.EVENTS.LEFT, BrickEvent.EVENTS.RIGHT].includes(direction)) {
             this.lastDirection = direction === BrickEvent.EVENTS.LEFT? -1 : 1;
+            switch(direction) {
+                case BrickEvent.EVENTS.LEFT:
+                    this.direction = -1;
+                    break;
+                case BrickEvent.EVENTS.RIGHT:
+                    this.direction = 1;
+                    break;
+            }
         }
 
         /**
